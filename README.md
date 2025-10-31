@@ -88,7 +88,7 @@ To start GitTray automatically when you log in:
 
 ## Full disclosure about AI usage
 
-The majority of the code and documentation for this project was generated with the assistance of AI tools, specifically OpenAI's GPT-5 and GitHub Copilot. The AI was utilized to help draft initial versions of the code, suggest improvements, and create documentation. All generated content was reviewed, tested, and modified by me to ensure functionality and accuracy. The AI was utilized to help draft initial versions of the code, suggest improvements, and create documentation. All generated content was reviewed, tested, and modified by me to ensure functionality and accuracy.
+The majority of the code and documentation for this project was generated with the assistance of AI tools, specifically OpenAI's GPT-5 and GitHub Copilot. The AI was utilized to help draft initial versions of the code, suggest improvements, and create documentation. All generated content was reviewed, tested, and modified by me to ensure functionality and accuracy. The AI was utilized to help draft initial versions of the code, suggest improvements, and create documentation. 
 
 ## 💡 Future Ideas
 
