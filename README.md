@@ -8,6 +8,8 @@
 
 It’s ideal for developers managing multiple repositories across drives, ensuring that nothing remains uncommitted or unpushed.
 
+**Note!** This tool currently lacks fetch support to detect remote changes. Thus, it cannot identify if a repository is behind the remote unless changes are made locally. Future updates may include this feature.
+
 ## ✨ Features
 
 - Scans multiple root directories for Git repositories.
