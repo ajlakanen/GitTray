@@ -17,6 +17,10 @@ internal static class Program
     }
 }
 
+
+/// <summary>
+/// Main application class managing the tray icon and scanning logic.
+/// </summary>
 public sealed class GitTrayApp : IDisposable
 {
     private readonly NotifyIcon _tray;
