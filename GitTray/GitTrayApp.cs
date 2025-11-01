@@ -232,16 +232,11 @@ public sealed class GitTrayApp : IDisposable
             if (Path.GetFileName(e.FullPath).Equals(".git", StringComparison.OrdinalIgnoreCase))
             {
                 var repoPath = Path.GetDirectoryName(e.FullPath);
-                if (!string.IsNullOrEmpty(repoPath))
+                if (!string.IsNullOrEmpty(repoPath) && !RepoFinder.IsIgnored(repoPath, _config.IgnorePatterns))
                 {
-                    // Use RepoFinder to check if this specific directory contains a .git and is not ignored
-                    var found = RepoFinder.FindRepos(new[] { Path.GetDirectoryName(repoPath)! }, _config.IgnorePatterns);
-                    if (found.Contains(repoPath, StringComparer.OrdinalIgnoreCase))
+                    lock (_cachedRepos)
                     {
-                        lock (_cachedRepos)
-                        {
-                            _cachedRepos.Add(repoPath);
-                        }
+                        _cachedRepos.Add(repoPath);
                     }
                 }
             }
@@ -267,8 +262,13 @@ public sealed class GitTrayApp : IDisposable
                 SetupFileWatchers(); // Refresh watchers in case roots changed
             }
             
-            // Use cached repos for status checking
-            _statuses = (await GitChecker.GetStatusesAsync(_cachedRepos))
+            // Use cached repos for status checking (create a snapshot to avoid holding lock during async operation)
+            IEnumerable<string> reposSnapshot;
+            lock (_cachedRepos)
+            {
+                reposSnapshot = _cachedRepos.ToList();
+            }
+            _statuses = (await GitChecker.GetStatusesAsync(reposSnapshot))
                 .OrderBy(s => s.Path, StringComparer.OrdinalIgnoreCase).ToList();
 
             var anyDirty = _statuses.Any(s =>

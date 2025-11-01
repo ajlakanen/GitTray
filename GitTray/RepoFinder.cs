@@ -35,7 +35,7 @@ public static class RepoFinder
     /// <param name="path">The path to check.</param>
     /// <param name="patterns">The ignore patterns.</param>
     /// <returns>True if the path should be ignored; otherwise false.</returns>
-    private static bool IsIgnored(string path, IEnumerable<string> patterns)
+    public static bool IsIgnored(string path, IEnumerable<string> patterns)
     {
         foreach (var p in patterns)
         {
