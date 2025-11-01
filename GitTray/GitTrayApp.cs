@@ -26,6 +26,9 @@ public sealed class GitTrayApp : IDisposable
     private bool _isExiting;
     private DirtyListForm? _listForm;
     private List<RepoStatus> _statuses = new();
+    private HashSet<string> _cachedRepos = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _lastDiscoveryTime = DateTime.MinValue;
+    private List<FileSystemWatcher> _watchers = new();
 
     public GitTrayApp()
     {
@@ -65,6 +68,10 @@ public sealed class GitTrayApp : IDisposable
         _timer.Tick += async (_, __) => await RescanAsync();
         _timer.Start();
 
+        // Initial repository discovery and watcher setup
+        DiscoverRepos();
+        SetupFileWatchers();
+
         // Initial scan
         _ = RescanAsync();
 
@@ -84,7 +91,11 @@ public sealed class GitTrayApp : IDisposable
         _greenIcon.Dispose();
         _redIcon.Dispose();
         _menu.Dispose();
-        _listForm.Dispose();
+        _listForm?.Dispose();
+        foreach (var watcher in _watchers)
+        {
+            watcher.Dispose();
+        }
     }
 
     /// <summary>
@@ -162,13 +173,102 @@ public sealed class GitTrayApp : IDisposable
             Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
     }
 
+    /// <summary>
+    /// Discover all Git repositories in the configured roots.
+    /// </summary>
+    private void DiscoverRepos()
+    {
+        _cachedRepos = new HashSet<string>(
+            RepoFinder.FindRepos(_config.Roots, _config.IgnorePatterns), 
+            StringComparer.OrdinalIgnoreCase);
+        _lastDiscoveryTime = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Setup FileSystemWatchers to detect new .git directories.
+    /// </summary>
+    private void SetupFileWatchers()
+    {
+        // Dispose existing watchers
+        foreach (var watcher in _watchers)
+        {
+            watcher.Dispose();
+        }
+        _watchers.Clear();
+
+        // Create new watchers for each root
+        foreach (var root in _config.Roots)
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) continue;
+
+            try
+            {
+                var watcher = new FileSystemWatcher(root)
+                {
+                    Filter = ".git",
+                    IncludeSubdirectories = true,
+                    NotifyFilter = NotifyFilters.DirectoryName
+                };
+
+                watcher.Created += OnGitDirCreated;
+                watcher.EnableRaisingEvents = true;
+                _watchers.Add(watcher);
+            }
+            catch
+            {
+                // Ignore errors setting up watchers (e.g., network drives, permissions)
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handle new .git directory creation.
+    /// </summary>
+    private void OnGitDirCreated(object sender, FileSystemEventArgs e)
+    {
+        try
+        {
+            // Check if this is a .git directory
+            if (Path.GetFileName(e.FullPath).Equals(".git", StringComparison.OrdinalIgnoreCase))
+            {
+                var repoPath = Path.GetDirectoryName(e.FullPath);
+                if (!string.IsNullOrEmpty(repoPath) && !RepoFinder.IsIgnored(repoPath, _config.IgnorePatterns))
+                {
+                    lock (_cachedRepos)
+                    {
+                        _cachedRepos.Add(repoPath);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors in watcher callback
+        }
+    }
+
     public async Task RescanAsync()
     {
         try
         {
             _config = Config.Load();
-            var repos = RepoFinder.FindRepos(_config.Roots, _config.IgnorePatterns);
-            _statuses = (await GitChecker.GetStatusesAsync(repos))
+            
+            // Check if we need to rediscover repositories
+            var now = DateTime.UtcNow;
+            var discoveryInterval = TimeSpan.FromMinutes(_config.RepoDiscoveryMinutes);
+            if (now - _lastDiscoveryTime >= discoveryInterval)
+            {
+                DiscoverRepos();
+                SetupFileWatchers(); // Refresh watchers in case roots changed
+            }
+            
+            // Use cached repos for status checking (create a snapshot to avoid holding lock during async operation)
+            IEnumerable<string> reposSnapshot;
+            lock (_cachedRepos)
+            {
+                reposSnapshot = _cachedRepos.ToList();
+            }
+            _statuses = (await GitChecker.GetStatusesAsync(reposSnapshot))
                 .OrderBy(s => s.Path, StringComparer.OrdinalIgnoreCase).ToList();
 
             var anyDirty = _statuses.Any(s =>
