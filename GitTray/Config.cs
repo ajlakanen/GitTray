@@ -11,6 +11,7 @@ public sealed class Config
     [JsonPropertyName("roots")] public List<string> Roots { get; set; } = new();
     [JsonPropertyName("ignorePatterns")] public List<string> IgnorePatterns { get; set; } = new();
     [JsonPropertyName("intervalSeconds")] public int IntervalSeconds { get; set; } = 60;
+    [JsonPropertyName("repoDiscoveryMinutes")] public int RepoDiscoveryMinutes { get; set; } = 60;
 
     /// <summary>
     /// Path to the configuration file.
@@ -61,7 +62,8 @@ public sealed class Config
         {
             Roots = defaultRoots.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             IgnorePatterns = new List<string> { "\\.git\\modules\\*", "node_modules", "bin\\*", "obj\\*" },
-            IntervalSeconds = 60
+            IntervalSeconds = 60,
+            RepoDiscoveryMinutes = 60
         };
     }
 }
