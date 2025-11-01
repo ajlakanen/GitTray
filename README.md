@@ -56,17 +56,21 @@ Example:
     "D:\\repos"
   ],
   "ignorePatterns": ["node_modules", "bin\\*", "obj\\*"],
-  "intervalSeconds": 60
+  "intervalSeconds": 60,
+  "repoDiscoveryMinutes": 60
 }
 ```
 - **roots** – directories to recursively scan.
 - **ignorePatterns** – substrings or simple wildcards to skip.
-- **intervalSeconds** – refresh interval.
+- **intervalSeconds** – refresh interval for checking repository statuses.
+- **repoDiscoveryMinutes** – interval for full repository discovery (default: 60). Repositories are cached between discoveries to reduce disk I/O.
 
 You can open this file anytime via right-click → **Open config.json**.
 
 ## 🧠 How it Works
-GitTray runs a background timer that executes:
+GitTray discovers Git repositories on startup and caches them to minimize disk I/O. The cached list is refreshed periodically (default: every 60 minutes) or when new `.git` directories are detected via FileSystemWatcher.
+
+For status checking, it runs a background timer that executes:
 - `git status --porcelain` → checks for uncommitted changes.
 - `git status -sb --porcelain=2 -b` → inspects ahead/behind counts and upstream presence.
 
